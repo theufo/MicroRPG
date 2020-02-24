@@ -9,6 +9,7 @@ public class EnemyScript : MonoBehaviour
     public float moveSpeed;
     public int curHp;
     public int maxHp;
+    public int xpToGive;
 
     [Header("Attack")]
     public int damage;
@@ -79,6 +80,7 @@ public class EnemyScript : MonoBehaviour
 
     private void Die()
     {
+        player.AddXp(xpToGive);
         Destroy(gameObject);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerScript : MonoBehaviour
@@ -8,12 +9,20 @@ public class PlayerScript : MonoBehaviour
     public int curHp;
     public int maxHp;
     public int damage;
+    public float interactRange;
+    public List<string> Inventory = new List<string>();
 
     [Header("Combat")]
     public KeyCode attackKey;
     public float attackRange;
     public float attackRate;
     private float lastAttackTime;
+
+    [Header("Experience")] 
+    public int currentLevel;
+    public int currentXp;
+    public int xpToNextLevel;
+    public float levelXpModifier;
 
     private Vector2 facingDirection;
 
@@ -26,12 +35,21 @@ public class PlayerScript : MonoBehaviour
     private Rigidbody2D rig;
     private SpriteRenderer sr;
     private ParticleSystem hitEffect;
+    private PlayerUIScript playerUI;
 
     void Awake()
     {
         rig = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
         hitEffect = gameObject.GetComponentInChildren<ParticleSystem>();
+        playerUI = FindObjectOfType<PlayerUIScript>();
+    }
+
+    private void Start()
+    {
+        playerUI.UpdateXpBarFill();
+        playerUI.UpdateLevelText();
+        playerUI.UpdateHealthBarFill();
     }
 
     void Update()
@@ -42,6 +60,26 @@ public class PlayerScript : MonoBehaviour
         {
             if (Time.time - lastAttackTime >= attackRate)
                 Attack();
+        }
+
+        CheckInteract();
+    }
+
+    private void CheckInteract()
+    {
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, facingDirection, interactRange, 1 << 9);
+
+        if (hit.collider != null)
+        {
+            var interactable = hit.collider.gameObject.GetComponent<Interactable>();
+            playerUI.SetInteractText(hit.collider.transform.position, interactable.InteractionDescription);
+
+            if (Input.GetKeyDown(attackKey))
+                interactable.Interact();
+        }
+        else
+        {
+            playerUI.DisableInteractText();
         }
     }
 
@@ -90,6 +128,7 @@ public class PlayerScript : MonoBehaviour
     public void TakeDamage(int damageTaken)
     {
         curHp -= damageTaken;
+        playerUI.UpdateHealthBarFill();
 
         if (curHp <= 0)
             Die();
@@ -98,5 +137,31 @@ public class PlayerScript : MonoBehaviour
     private void Die()
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene("GameScene");
+    }
+
+    public void AddXp(int xp)
+    {
+        currentXp += xp;
+        playerUI.UpdateXpBarFill();
+
+        if (currentXp > xpToNextLevel)
+            LevelUp();
+    }
+
+    private void LevelUp()
+    {
+        currentXp -= xpToNextLevel;
+        currentLevel++;
+
+        xpToNextLevel = Mathf.RoundToInt(xpToNextLevel * levelXpModifier);
+
+        playerUI.UpdateLevelText();
+        playerUI.UpdateXpBarFill();
+    }
+
+    public void AddToInventory(string item)
+    {
+        Inventory.Add(item);
+        playerUI.UpdateInventory();
     }
 }
